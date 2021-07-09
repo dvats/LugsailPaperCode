@@ -69,7 +69,7 @@ lines(x, lug3, lty = 3, col = "blue")
 lines(x, lug4, lty = 4, col = "blue")
 lines(x, lug5, lty = 5, col = "blue")
 lines(x, lug.old, col = "red")
-legend("topright", legend = c("Over Lugsail", "Adapt Lugsail", "Zero Lugsail", "Original Bartlett"), lty = c(1,2,1,1), col = c("red", "blue", "blue", "black"))
+legend("topright", bty = "n", legend = c("Over Lugsail", "Adapt Lugsail", "Zero Lugsail", "Original Bartlett"), lty = c(1,2,1,1), col = c("red", "blue", "blue", "black"))
 dev.off()
 
 
@@ -89,7 +89,7 @@ lines(x, lug3, lty = 3, col = "blue")
 lines(x, lug4, lty = 4, col = "blue")
 lines(x, lug5, lty = 5, col = "blue")
 lines(x, lug.old, col = "red")
-legend("topright", legend = c("Over Lugsail", "Adapt Lugsail", "Zero Lugsail", "Original TH"), lty = c(1,2,1,1), col = c("red", "blue", "blue", "black"))
+legend("topright", bty = "n",legend = c("Over Lugsail", "Adapt Lugsail", "Zero Lugsail", "Original TH"), lty = c(1,2,1,1), col = c("red", "blue", "blue", "black"))
 dev.off()
 
 
@@ -111,7 +111,7 @@ lines(x, lug3, lty = 3, col = "blue")
 lines(x, lug4, lty = 4, col = "blue")
 lines(x, lug5, lty = 5, col = "blue")
 lines(x, lug.old, col = "red")
-legend("topright", legend = c("Over Lugsail", "Adapt Lugsail", "Zero Lugsail", "Original QS"), lty = c(1,2,1,1), col = c("red", "blue", "blue", "black"))
+legend("topright", bty = "n", legend = c("Over Lugsail", "Adapt Lugsail", "Zero Lugsail", "Original QS"), lty = c(1,2,1,1), col = c("red", "blue", "blue", "black"))
 dev.off()
 
 
@@ -181,7 +181,7 @@ plot_bias_bm <- function(phi.vec, N, comp, main = "")
 	lines(N, bias.vecJ4, col = "blue", lty = 2)
 
 	abline(h = 0, lty = 3)
-	legend("bottomright", legend = c("Over Lugsail",  "Adapt Lugsail" ,"Zero Lugsail",  "Original BM"), col = c("red", "blue", "blue",  "black"), lty = c(1,2,1,1))
+	legend("bottomright", bty = "n", legend = c("Over Lugsail",  "Adapt Lugsail" ,"Zero Lugsail",  "Original BM"), col = c("red", "blue", "blue",  "black"), lty = c(1,2,1,1))
 }
 
 
@@ -351,19 +351,19 @@ plot(c(.50, .70, .90), bias_bart[7:9,1] , type = "b", ylim = range(bias_bart[7:9
 lines(c(.50, .70, .90), bias_bart[7:9,2] , type = "b", col = "blue", lty = 1)
 lines(c(.50, .70, .90), bias_bart[7:9,4] , type = "b", col = "blue", lty = 2)
 lines(c(.50, .70, .90), bias_bart[7:9,5] , type = "b", col = "red", lty = 1)
-legend("bottomleft", col = c("black", "blue", "blue", "red"), lty = c(1,2,1,1), legend = c("BT", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"))
+legend("bottomleft", bty = "n",col = c("black", "blue", "blue", "red"), lty = c(1,2,1,1), legend = c("BT", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"))
 
 plot(c(.50, .70, .90),bias_tukey[7:9,1] , type = "b", ylim = range(bias_tukey[7:9, c(1,2,4,5)]), ylab = "Average Relative Bias on Diagonals", xlab = expression(rho[x]), pch = 2, cex.lab = 1.2)
 lines(c(.50, .70, .90),bias_tukey[7:9,2] , type = "b", col = "blue", lty = 1, pch = 2)
 lines(c(.50, .70, .90),bias_tukey[7:9,4] , type = "b", col = "blue", lty = 2, pch = 2)
 lines(c(.50, .70, .90),bias_tukey[7:9,5] , type = "b", col = "red", lty = 1, pch = 2)
-legend("bottomleft", col = c("black", "blue", "blue",  "red"), lty = c(1,2,1,1), legend = c("TH", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"))
+legend("bottomleft", bty = "n",col = c("black", "blue", "blue",  "red"), lty = c(1,2,1,1), legend = c("TH", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"))
 
 plot(c(.50, .70, .90),bias_qs[7:9,1] , type = "b", ylim = range(bias_qs[7:9, c(1,2,4,5)]), ylab = "Average Relative Bias on Diagonals", xlab = expression(rho[x]), pch = 3, cex.lab = 1.2)
 lines(c(.50, .70, .90),bias_qs[7:9,2] , type = "b", col = "blue", pch = 3, lty =1)
 lines(c(.50, .70, .90),bias_qs[7:9,4] , type = "b", col = "blue", pch = 3, lty =2)
 lines(c(.50, .70, .90),bias_qs[7:9,5] , type = "b", col = "red", pch = 3, lty =1)
-legend("bottomleft", col = c("black", "blue", "blue", "red"), lty = c(1,2,1,1), legend = c("QS", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"))
+legend("bottomleft", bty = "n",col = c("black", "blue", "blue", "red"), lty = c(1,2,1,1), legend = c("QS", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"))
 dev.off()
 
 
@@ -476,7 +476,7 @@ lines(sizes, b_wbm, col = "blue", type = "b", lty = 1)
 lines(sizes, b_jack2, col = "purple", type = "b", lty = 1)
 lines(sizes, b_lug, col = "red", type = "b", lty = 1)
 abline(h = 0, lty = 2)
-legend("topright", legend = c("BM", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"), col = c("black", "blue", "purple", "red"), lty = 1)
+legend("topright", bty = "n",legend = c("BM", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"), col = c("black", "blue", "purple", "red"), lty = 1)
 dev.off()
 
 
@@ -507,7 +507,7 @@ lines(subsize,colMeans(ess_track$Jack_log), col = "purple" )
 segments(x0 = subsize, y0 = colMeans(ess_track$Jack_log) - 1.96*se_ess_jack2, y1 = colMeans(ess_track$Jack_log) + 1.96*se_ess_jack2, col = "purple")
 
 abline(h = ess_true, lty = 2)
-legend("topright", legend = c("BM", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"), col = c("black", "blue", "purple", "red"), lty = 1)
+legend("topright", bty = "n",legend = c("BM", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"), col = c("black", "blue", "purple", "red"), lty = 1)
 dev.off()
 
 
@@ -546,7 +546,7 @@ lines(subsize,colMeans(ess_track$Jack_log), col = "purple" )
 segments(x0 = subsize, y0 = colMeans(ess_track$Jack_log) - 1.96*se_ess_jack2, y1 = colMeans(ess_track$Jack_log) + 1.96*se_ess_jack2, col = "purple")
 
 
-legend("topright", legend = c("BM", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"), col = c("black", "blue", "purple", "red"), lty = 1)
+legend("topright", bty = "n",legend = c("BM", "Zero Lugsail", "Adapt Lugsail", "Over Lugsail"), col = c("black", "blue", "purple", "red"), lty = 1)
 dev.off()
 
 
