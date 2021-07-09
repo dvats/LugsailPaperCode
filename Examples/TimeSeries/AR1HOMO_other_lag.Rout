@@ -1,0 +1,455 @@
+
+R version 4.0.2 (2020-06-22) -- "Taking Off Again"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################
+> ## Testing SVE time series
+> ################################
+> set.seed(1)
+> library(MASS)
+> # library(mcmcse)
+> library(sandwich)
+> ################################
+> ###truth#####
+> ################################
+> true.var <- function(u.rho = .70, x.rho = .90, p = 5, W.rho = .50, w = 1)
++ {
++ 	foo <- matrix(W.rho, nrow= p, ncol=p)
++ 	W <- foo^(abs(col(foo)-row(foo)))
++ 
++ 	lam <- w/(1 - u.rho^2)
++ 	Lam <- W/(1 - x.rho^2)
++ 
++ 	truth <- lam*Lam + (Lam + t(Lam))*lam*(u.rho*x.rho/(1 - u.rho*x.rho))
++ 
++ 	return(truth)
++ }
+> 
+> adjust_matrix <- function(mat, N, epsilon = sqrt(log(N)/dim(mat)[2]), b = 9/10)
++ {
++   mat.adj <- mat
++   adj <- epsilon*N^(-b)
++   vars <- diag(mat)
++   corr <- cov2cor(mat)
++   eig <- eigen(corr)
++   adj.eigs <- pmax(eig$values, adj)
++   mat.adj <- diag(vars^(1/2))%*% eig$vectors %*% diag(adj.eigs) %*% t(eig$vectors) %*% diag(vars^(1/2))
++   return(mat.adj)
++ }
+> 
+> 
+> T.vec <- c(100, 500, 1000)
+> 
+> u.rho <- c(.50, .70, .90)
+> x.rho <- c(.50, .70, .90)
+> W.rho <- .99
+> p <- 5
+> foo <- matrix(W.rho, nrow= p, ncol=p)
+> W <- foo^(abs(col(foo)-row(foo)))
+> # W <- diag(1-x.rho^2, p)
+> beta.star <- rep(0, p)
+> w <- 1
+> 
+> 
+> B <- 1000
+> nms <- rep(u.rho, length(T.vec))
+> 
+> bias_bt <- list(length = length(T.vec)*length(u.rho))
+> mse_bt <- list(length = length(T.vec)*length(u.rho))
+> deter_bt <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_bt2 <- list(length = length(T.vec)*length(u.rho))
+> mse_bt2 <- list(length = length(T.vec)*length(u.rho))
+> deter_bt2 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_bt3 <- list(length = length(T.vec)*length(u.rho))
+> mse_bt3 <- list(length = length(T.vec)*length(u.rho))
+> deter_bt3 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_bt4 <- list(length = length(T.vec)*length(u.rho))
+> mse_bt4 <- list(length = length(T.vec)*length(u.rho))
+> deter_bt4 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_bt5 <- list(length = length(T.vec)*length(u.rho))
+> mse_bt5 <- list(length = length(T.vec)*length(u.rho))
+> deter_bt5 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> 
+> bias_qs <- list(length = length(T.vec)*length(u.rho))
+> mse_qs <- list(length = length(T.vec)*length(u.rho))
+> deter_qs <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_qs2 <- list(length = length(T.vec)*length(u.rho))
+> mse_qs2 <- list(length = length(T.vec)*length(u.rho))
+> deter_qs2 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_qs3 <- list(length = length(T.vec)*length(u.rho))
+> mse_qs3 <- list(length = length(T.vec)*length(u.rho))
+> deter_qs3 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_qs4 <- list(length = length(T.vec)*length(u.rho))
+> mse_qs4 <- list(length = length(T.vec)*length(u.rho))
+> deter_qs4 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_qs5 <- list(length = length(T.vec)*length(u.rho))
+> mse_qs5 <- list(length = length(T.vec)*length(u.rho))
+> deter_qs5 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> 
+> bias_th <- list(length = length(T.vec)*length(u.rho))
+> mse_th <- list(length = length(T.vec)*length(u.rho))
+> deter_th <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_th2 <- list(length = length(T.vec)*length(u.rho))
+> mse_th2 <- list(length = length(T.vec)*length(u.rho))
+> deter_th2 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_th3 <- list(length = length(T.vec)*length(u.rho))
+> mse_th3 <- list(length = length(T.vec)*length(u.rho))
+> deter_th3 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_th4 <- list(length = length(T.vec)*length(u.rho))
+> mse_th4 <- list(length = length(T.vec)*length(u.rho))
+> deter_th4 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> bias_th5 <- list(length = length(T.vec)*length(u.rho))
+> mse_th5 <- list(length = length(T.vec)*length(u.rho))
+> deter_th5 <- matrix(0, nrow = B, ncol = length(T.vec)*length(u.rho), dimnames = list(1:B, nms))
+> 
+> level <- .90
+> coverage_bt <- matrix(0, nrow = B, ncol = 9)
+> coverage_bt2 <- matrix(0, nrow = B, ncol = 9)
+> coverage_bt3 <- matrix(0, nrow = B, ncol = 9)
+> coverage_bt4 <- matrix(0, nrow = B, ncol = 9)
+> coverage_bt5 <- matrix(0, nrow = B, ncol = 9)
+> 
+> coverage_truth <- matrix(0, nrow = B, ncol = 9)
+> 
+> coverage_qs <- matrix(0, nrow = B, ncol = 9)
+> coverage_qs2 <- matrix(0, nrow = B, ncol = 9)
+> coverage_qs3 <- matrix(0, nrow = B, ncol = 9)
+> coverage_qs4 <- matrix(0, nrow = B, ncol = 9)
+> coverage_qs5 <- matrix(0, nrow = B, ncol = 9)
+> 
+> coverage_th <- matrix(0, nrow = B, ncol = 9)
+> coverage_th2 <- matrix(0, nrow = B, ncol = 9)
+> coverage_th3 <- matrix(0, nrow = B, ncol = 9)
+> coverage_th4 <- matrix(0, nrow = B, ncol = 9)
+> coverage_th5 <- matrix(0, nrow = B, ncol = 9)
+> 
+> c2 <- 1/(1 - 1/4)
+> c3 <- 1/(1 - 1/5)
+> for(i in 1:length(T.vec))
++ {
++ 	for(j in 1:length(u.rho))
++ 	{
++ 		# print(c(i,j))
++ 		print(c(T.vec[i], u.rho[j]))
++ 		bias_bt[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_bt2[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_bt3[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_bt4[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_bt5[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 
++ 		bias_qs[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_qs2[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_qs3[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_qs4[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_qs5[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 
++ 		bias_th[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_th2[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_th3[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_th4[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		bias_th5[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 
++ 		mse_bt[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		mse_bt2[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		mse_bt3[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		mse_bt4[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		mse_bt5[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 
++ 		mse_qs[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		mse_qs2[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		mse_qs3[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		mse_qs4[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		mse_qs5[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 
++ 		mse_th[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		mse_th2[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)		
++ 		mse_th3[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		mse_th4[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 		mse_th5[[((i-1)*(length(u.rho)) + j)]] <- matrix(0, nrow = B, ncol = p^2)
++ 
++ 		truth.mat <- true.var(u.rho = u.rho[j], x.rho = x.rho[j], W.rho = W.rho, w = w)
++ 
++ 		for(b in 1:B)
++ 		{
++ 			T <- T.vec[i]
++ 			X <- matrix(0, nrow  = T, ncol = p)
++ 			X[1,] <- rnorm(p)
++ 			for(t in 2:T)
++ 			{
++ 				X[t, ] <- x.rho[j] * X[t-1, ] + mvrnorm(1, mu = rep(0, p), Sigma = W)
++ 			}
++ 
++ 			u <- numeric(length = T)
++ 			u[1] <- 0
++ 
++ 			for(t in 2:T)
++ 			{
++ 				u[t] <- u.rho[j]*u[t-1] + rnorm(1, sd = sqrt(w))
++ 			}
++ 
++ 			y <- X%*%beta.star + u
++ 			XtX <- t(X)%*%X
++ 			beta.ols <- solve(XtX) %*% t(X)%*%y
++ 			u.hat <- y - X%*%beta.ols
++ 			v.hat <- apply(X, 2, function(x) x*u.hat)
++ 
++ 			Bt <- solve(XtX/T)
++ 
++ 			m <- lm(v.hat ~ 1)
++ 			b_bt <- bwAndrews(x = m, kernel = "Bartlett", approx = "AR(1)", prewhite = 0)
++ 			b_th <- bwAndrews(x = m, kernel = "Tukey-Hanning", approx = "AR(1)", prewhite = 0)
++ 			b_qs <- bwAndrews(x = m, kernel = "Quadratic Spectral", approx = "AR(1)", prewhite = 0)
++ 
++ 			r.J <- 1/2
++ 			alpha.J1 <- function(q,a) ( a + r.J^q)/(a*(1 - r.J^q))
++ 			alpha.J2 <- function(q,a) ( log(a) + r.J^q)/(log(a) *(1 - r.J^q))
++ 
++ 			BT <- lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Bartlett", bw = b_bt)*T
++ 			BT.2 <- 2*BT - lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Bartlett", bw = b_bt/2)*T
++ 			BT.3 <- 2*BT - lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Bartlett", bw = b_bt/3)*T
++ 			BT.4 <- alpha.J1(1, T/b_bt)*BT + (1 - alpha.J1(1, T/b_bt))*lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Bartlett", bw = b_bt/2)*T
++ 			BT.5 <- alpha.J2(1, T/b_bt)*BT + (1 - alpha.J2(1, T/b_bt))*lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Bartlett", bw = b_bt/2)*T
++ 
++ 			QS <- lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Quadratic Spectral", bw = b_qs)*T
++ 			QS.2 <- c2*QS + (1-c2)*lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Quadratic Spectral", bw = b_qs/2)*T
++ 			QS.3 <- c3*QS + (1-c3)*lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Quadratic Spectral", bw = b_qs/3)*T
++ 			QS.4 <- alpha.J1(2, T/b_qs)*QS + (1 - alpha.J1(2, T/b_qs))*lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Quadratic Spectral", bw = b_qs/2)*T
++ 			QS.5 <- alpha.J2(2, T/b_qs)*QS + (1 - alpha.J2(2, T/b_qs))*lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Quadratic Spectral", bw = b_qs/2)*T
++ 			
++ 			TH <- lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Tukey-Hanning", bw = b_th)*T
++ 			TH.2 <- c2*TH + (1-c2)*lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Tukey-Hanning", bw = b_th/2)*T
++ 			TH.3 <- c3*TH + (1-c3)*lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Tukey-Hanning", bw = b_th/3)*T
++ 			TH.4 <- alpha.J1(2, T/b_th)*TH + (1 - alpha.J1(2, T/b_th))*lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Tukey-Hanning", bw = b_th/2)*T
++ 			TH.5 <- alpha.J2(2, T/b_th)*TH + (1 - alpha.J2(2, T/b_th))*lrvar(x = v.hat, type = "Andrews", prewhite = FALSE, adjust = FALSE, kernel = "Tukey-Hanning", bw = b_th/2)*T
++ 
++ 			large.crit <- qchisq(level, df = p)/T
++ 
++ 			foo <- diag(BT.2)
++ 			foo <- foo*(foo > 0) + diag(BT)*(foo  < 0)
++ 			diag(BT.2) <- foo
++ 
++ 			foo <- diag(BT.3)
++ 			foo <- foo*(foo > 0) + diag(BT)*(foo  < 0)
++ 			diag(BT.3) <- foo
++ 
++ 			foo <- diag(BT.4)
++ 			foo <- foo*(foo > 0) + diag(BT)*(foo  < 0)
++ 			diag(BT.4) <- foo
++ 
++ 			foo <- diag(BT.5)
++ 			foo <- foo*(foo > 0) + diag(BT)*(foo  < 0)
++ 			diag(BT.5) <- foo						
++ 
++ 			foo <- diag(TH.2)
++ 			foo <- foo*(foo > 0) + diag(TH)*(foo  < 0)
++ 			diag(TH.2) <- foo
++ 
++ 			foo <- diag(TH.3)
++ 			foo <- foo*(foo > 0) + diag(TH)*(foo  < 0)
++ 			diag(TH.3) <- foo
++ 
++ 			foo <- diag(TH.4)
++ 			foo <- foo*(foo > 0) + diag(TH)*(foo  < 0)
++ 			diag(TH.4) <- foo
++ 
++ 			foo <- diag(TH.5)
++ 			foo <- foo*(foo > 0) + diag(TH)*(foo  < 0)
++ 			diag(TH.5) <- foo						
++ 
++ 			foo <- diag(QS.2)
++ 			foo <- foo*(foo > 0) + diag(QS)*(foo  < 0)
++ 			diag(QS.2) <- foo
++ 
++ 			foo <- diag(QS.3)
++ 			foo <- foo*(foo > 0) + diag(QS)*(foo  < 0)
++ 			diag(QS.3) <- foo
++ 
++ 			foo <- diag(QS.4)
++ 			foo <- foo*(foo > 0) + diag(QS)*(foo  < 0)
++ 			diag(QS.4) <- foo
++ 
++ 			foo <- diag(QS.5)
++ 			foo <- foo*(foo > 0) + diag(QS)*(foo  < 0)
++ 			diag(QS.5) <- foo			
++ 
++ 			if(det(BT.2) < 1e-8) BT.2 <- adjust_matrix(BT.2, N = T)
++ 			if(det(BT.3) < 1e-8) BT.3 <- adjust_matrix(BT.3, N = T)
++ 			if(det(BT.4) < 1e-8) BT.4 <- adjust_matrix(BT.4, N = T)
++ 			if(det(BT.5) < 1e-8) BT.5 <- adjust_matrix(BT.5, N = T)
++ 
++ 			if(det(TH) < 1e-8) TH <- adjust_matrix(TH, N = T)
++ 			if(det(TH.2) < 1e-8) TH.2 <- adjust_matrix(TH.2, N = T)
++ 			if(det(TH.3) < 1e-8) TH.3 <- adjust_matrix(TH.3, N = T)
++ 			if(det(TH.4) < 1e-8) TH.4 <- adjust_matrix(TH.4, N = T)
++ 			if(det(TH.4) < 1e-8) TH.5 <- adjust_matrix(TH.5, N = T)
++ 
++ 			if(det(QS.2) < 1e-8) QS.2 <- adjust_matrix(QS.2, N = T)
++ 			if(det(QS.3) < 1e-8) QS.3 <- adjust_matrix(QS.3, N = T)
++ 			if(det(QS.4) < 1e-8) QS.4 <- adjust_matrix(QS.4, N = T)
++ 			if(det(QS.5) < 1e-8) QS.5 <- adjust_matrix(QS.5, N = T)	
++ 
++ 
++ 			# foo <- diag(QS.2)
++ 			# foo <- foo*(foo > 0) + diag(QS)*(foo  < 0)
++ 			# diag(QS.2) <- foo
++ 
++ 			# QS.2 <- adjust_matrix(QS.2, N = T)
++ 
++ 			truth <- beta.star
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%truth.mat%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_truth[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 			
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%BT%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_bt[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%BT.2%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_bt2[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%BT.3%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_bt3[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%BT.4%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_bt4[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%BT.5%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_bt5[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 			
++ 
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%QS%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_qs[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%QS.2%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_qs2[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%QS.3%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_qs3[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%QS.4%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_qs4[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%QS.5%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_qs5[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%TH%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_th[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%TH.2%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_th2[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%TH.3%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_th3[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%TH.4%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_th4[b,((i-1)*(length(u.rho)) + j)] <- 1
++ 
++ 			tester <- t(beta.ols - truth) %*% solve(Bt%*%TH.5%*%t(Bt)) %*% (beta.ols - truth)
++ 			if(tester < large.crit) coverage_th5[b,((i-1)*(length(u.rho)) + j)] <- 1		
++ 
++ 
++ 			bias_bt[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (BT - truth.mat) )
++ 			bias_bt2[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (BT.2 - truth.mat) )
++ 			bias_bt3[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (BT.3 - truth.mat) )
++ 			bias_bt4[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (BT.4 - truth.mat) )
++ 			bias_bt5[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (BT.5 - truth.mat) )
++ 
++ 			bias_qs[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (QS - truth.mat) )
++ 			bias_qs2[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (QS.2 - truth.mat) )
++ 			bias_qs3[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (QS.3 - truth.mat) )
++ 			bias_qs4[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (QS.4 - truth.mat) )
++ 			bias_qs5[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (QS.5 - truth.mat) )
++ 
++ 			bias_th[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (TH - truth.mat) )			
++ 			bias_th2[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (TH.2 - truth.mat) )
++ 			bias_th3[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (TH.3 - truth.mat) )
++ 			bias_th4[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (TH.4 - truth.mat) )
++ 			bias_th5[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (TH.5 - truth.mat) )
++ 
++ 			mse_bt[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (BT - truth.mat)^2 )
++ 			mse_bt2[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (BT.2 - truth.mat)^2 )
++ 			mse_bt3[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (BT.3 - truth.mat)^2 )
++ 			mse_bt4[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (BT.4 - truth.mat)^2 )
++ 			mse_bt5[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (BT.5 - truth.mat)^2 )
++ 
++ 			mse_qs[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (QS - truth.mat)^2 )
++ 			mse_qs2[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (QS.2 - truth.mat)^2 )
++ 			mse_qs3[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (QS.3 - truth.mat)^2 )
++ 			mse_qs4[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (QS.4 - truth.mat)^2 )
++ 			mse_qs5[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (QS.5 - truth.mat)^2 )
++ 			
++ 			mse_th[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (TH - truth.mat)^2 )
++ 			mse_th2[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (TH.2 - truth.mat)^2 )
++ 			mse_th3[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (TH.3 - truth.mat)^2 )
++ 			mse_th4[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (TH.4 - truth.mat)^2 )
++ 			mse_th5[[((i-1)*(length(u.rho)) + j)]][b, ] <-  as.numeric( (TH.5 - truth.mat)^2 )
++ 
++ 			# deter_qs[b, ((i-1)*(length(u.rho)) + j) ] <- det(QS)^(1/p) - det(truth)^(1/p)
++ 
++ 			# deter_bt[b, ((i-1)*(length(u.rho)) + j) ] <- det(bart)^(1/p) - det(truth)^(1/p)
++ 			# deter_lug[b, ((i-1)*(length(u.rho)) + j) ] <- det(lug)^(1/p) - det(truth)^(1/p)
++ 
++ 		}
++ 
++ 	}
++ }
+[1] 100.0   0.5
+[1] 100.0   0.7
+[1] 100.0   0.9
+[1] 500.0   0.5
+[1] 500.0   0.7
+[1] 500.0   0.9
+[1] 1e+03 5e-01
+[1] 1e+03 7e-01
+[1] 1e+03 9e-01
+> 
+> 
+> 
+> 
+> # calc_det <- function(mat)
+> # {
+> # 	# sum(apply(mat, 1, function(x) det(matrix(x, ncol = 5, nrow = 5))))/1e5
+> # 	det(matrix(colMeans(mat), nrow = 5, ncol = 5))
+> # }
+> 
+> save(file = "coverage_ts_other", coverage_bt, coverage_bt2, coverage_bt3,coverage_bt4,coverage_bt5, coverage_qs, coverage_qs2, coverage_qs3, coverage_qs4, coverage_qs5, coverage_th, coverage_th2, coverage_th3, coverage_th4, coverage_th5, coverage_truth)
+> save(file = "bias_ts_other", bias_bt, bias_bt2, bias_bt3, bias_bt4, bias_bt5, bias_qs, bias_qs2, bias_qs3, bias_qs4, bias_qs5, bias_th, bias_th2, bias_th3, bias_th4, bias_th5)
+> save(file = "mse_ts_other", mse_bt, mse_bt2, mse_bt3, mse_bt4, mse_bt5, mse_qs, mse_qs2, mse_qs3, mse_qs4, mse_qs5, mse_th, mse_th2, mse_th3, mse_th4, mse_th5)
+> 
+> 
+> 
+> 
+> proc.time()
+    user   system  elapsed 
+1334.848  121.958 1473.219 

@@ -1,0 +1,241 @@
+
+R version 4.0.2 (2020-06-22) -- "Taking Off Again"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> set.seed(100)
+> library(MCMCpack)
+Loading required package: coda
+Loading required package: MASS
+##
+## Markov Chain Monte Carlo Package (MCMCpack)
+## Copyright (C) 2003-2021 Andrew D. Martin, Kevin M. Quinn, and Jong Hee Park
+##
+## Support provided by the U.S. National Science Foundation
+## (Grants SES-0350646 and SES-0350613)
+##
+> library(mcmcse)
+mcmcse: Monte Carlo Standard Errors for MCMC
+Version 1.4-1 created on 2020-01-29.
+copyright (c) 2012, James M. Flegal, University of California, Riverside
+                    John Hughes, University of Colorado, Denver
+                    Dootika Vats, University of Warwick
+                    Ning Dai, University of Minnesota
+ For citation information, type citation("mcmcse").
+ Type help("mcmcse-package") to get started.
+
+> load("fram_true_mean_1e6100")
+> dat <- read.csv("framingham.csv")
+> dat$education <- as.factor(dat$education)
+> dat$currentSmoker <- as.factor(dat$currentSmoker)
+> dat$BPMeds <- as.factor(dat$BPMeds)
+> 
+> adjust_matrix <- function(mat, N, epsilon = sqrt(log(N)/dim(mat)[2]), b = 9/10)
++ {
++   mat.adj <- mat
++   adj <- epsilon*N^(-b)
++   vars <- diag(mat)
++   corr <- cov2cor(mat)
++   eig <- eigen(corr)
++   adj.eigs <- pmax(eig$values, adj)
++   mat.adj <- diag(vars^(1/2))%*% eig$vectors %*% diag(adj.eigs) %*% t(eig$vectors) %*% diag(vars^(1/2))
++   return(mat.adj)
++ }
+> 
+> logitchain <- function(seed, N, beta.start = NA)
++ {
++   chain <- MCMClogit(formula = TenYearCHD ~ 1 + . , data = dat, beta.start = beta.start, verbose = 0, seed = seed, burnin = 0, mcmc = N, thin = 1, B0 = 1/10, tune = .5)
++   return(chain)
++ }
+> 
+> 
+> 
+> fram_track <- function(N = 1e5, dat, B = 100, level = .90, size = "sqroot")
++ {
++ 	nloops <- 100
++ 	subsize <- seq(5e3, N, length = nloops)
++ 	ess_track_lug <- matrix(0, nrow = B, ncol = length(subsize))
++ 	ess_track_bm <- matrix(0, nrow = B, ncol = length(subsize))
++ 	ess_track_wbm <- matrix(0, nrow = B, ncol = length(subsize))
++ 	ess_track_jack1 <- matrix(0, nrow = B, ncol = length(subsize))
++ 	ess_track_jack2 <- matrix(0, nrow = B, ncol = length(subsize))
++ 
++ 	colnames(ess_track_wbm) <- subsize
++ 	colnames(ess_track_bm) <- subsize
++ 	colnames(ess_track_lug) <- subsize
++ 
++ 	r.J <- 1/2
++ 	for(b in 1:B)
++ 	{
++ 		if(b %% 1 ==0) print(b)
++ 		out <-  MCMClogit(formula = TenYearCHD ~ 1 + . , data = dat, beta.start = NA, verbose = 0, seed = (100 + b), burnin = 0, mcmc = N, thin = 1, B0 = 1/10, tune = .5)
++ 		chain <- out
++ 		beta.mean <- colMeans(chain)
++ 
++ 		p <- length(beta.mean)
++ 
++ 		for(j in 1:length(subsize))
++ 		{
++ 			# print(j)
++ 			minichain <- chain[1:subsize[j], ]
++ 			ess_track_bm[b, j] <- multiESS(minichain, r = 1, method = "bm", size = size, adjust = TRUE)/subsize[j]
++ 			ess_track_wbm[b,j] <- multiESS(minichain, r = 2, method = "bm", size = size, adjust = TRUE)/subsize[j]
++ 			ess_track_lug[b,j] <- multiESS(minichain, r = 3, method = "bm", size = size, adjust = TRUE)/subsize[j]
++ 
++ 		
++ 			foo <-  mcse.multi(minichain, r = 1, size = size, blather = TRUE)
++ 			bm <- foo$cov
++ 			bn <- foo$size
++ 			a <- floor(N/bn)
++ 			alpha.J1 <- ( a + r.J)/(a*(1 - r.J))
++ 			alpha.J2 <- ( log(a) + r.J)/(log(a)*(1 - r.J))
++ 
++ 			jack1.adj <- (alpha.J1)*bm + (1 - alpha.J1)*mcse.multi(minichain, size = floor(bn/2), r = 1)$cov
++ 			jack2.adj <- (alpha.J2)*bm + (1 - alpha.J2)*mcse.multi(minichain, size = floor(bn/2), r = 1)$cov
++ 
++ 			sig.eigen <- eigen(jack1.adj, only.values = TRUE)$values
++ 			if (min(sig.eigen) <= 0) {
++ 			    jack1.adj <- adjust_matrix(jack1.adj, N = N)
++ 			}
++ 
++ 			sig.eigen <- eigen(jack2.adj, only.values = TRUE)$values
++ 			if (min(sig.eigen) <= 0) {
++ 			    jack2.adj <- adjust_matrix(jack2.adj, N = N)
++ 			}
++ 
++ 			ess_track_jack1[b,j] <- multiESS(minichain, covmat = jack1.adj)/subsize[j]
++ 			ess_track_jack2[b,j] <- multiESS(minichain, covmat = jack2.adj)/subsize[j]
++ 	
++ 		}
++ 	}
++ 	return(list("BM" = ess_track_bm, "WBM" = ess_track_wbm, "LUG" = ess_track_lug, "Jack_lin" = ess_track_jack1, "Jack_log" = ess_track_jack2))
++ }
+> 
+> ess_track <- fram_track(N = 1e6, dat = dat, B = 100, size = "sqroot")
+[1] 1
+[1] 2
+[1] 3
+[1] 4
+[1] 5
+[1] 6
+[1] 7
+[1] 8
+[1] 9
+[1] 10
+[1] 11
+[1] 12
+[1] 13
+[1] 14
+[1] 15
+[1] 16
+[1] 17
+[1] 18
+[1] 19
+[1] 20
+[1] 21
+[1] 22
+[1] 23
+[1] 24
+[1] 25
+[1] 26
+[1] 27
+[1] 28
+[1] 29
+[1] 30
+[1] 31
+[1] 32
+[1] 33
+[1] 34
+[1] 35
+[1] 36
+[1] 37
+[1] 38
+[1] 39
+[1] 40
+[1] 41
+[1] 42
+[1] 43
+[1] 44
+[1] 45
+[1] 46
+[1] 47
+[1] 48
+[1] 49
+[1] 50
+[1] 51
+[1] 52
+[1] 53
+[1] 54
+[1] 55
+[1] 56
+[1] 57
+[1] 58
+[1] 59
+[1] 60
+[1] 61
+[1] 62
+[1] 63
+[1] 64
+[1] 65
+[1] 66
+[1] 67
+[1] 68
+[1] 69
+[1] 70
+[1] 71
+[1] 72
+[1] 73
+[1] 74
+[1] 75
+[1] 76
+[1] 77
+[1] 78
+[1] 79
+[1] 80
+[1] 81
+[1] 82
+[1] 83
+[1] 84
+[1] 85
+[1] 86
+[1] 87
+[1] 88
+[1] 89
+[1] 90
+[1] 91
+[1] 92
+[1] 93
+[1] 94
+[1] 95
+[1] 96
+[1] 97
+[1] 98
+[1] 99
+[1] 100
+> 
+> nloops <- 100
+> subsize <- seq(5e3, 1e6, length = nloops)
+> # plot(subsize, colMeans(foo$BM), type= 'l')
+> # lines(subsize, colMeans(foo$WBM), col = "red")
+> # lines(subsize, colMeans(foo$LUG), col = "blue")
+> 
+> save(subsize, ess_track, file = "fram_ess6_sq")
+> 
+> 
+> proc.time()
+     user    system   elapsed 
+25303.989   291.745 25691.025 

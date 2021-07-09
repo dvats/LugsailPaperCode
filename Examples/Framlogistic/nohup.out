@@ -1,0 +1,1 @@
+/Library/Frameworks/R.framework/Resources/bin/batch: line 60: 37208 Killed: 9               ${R_HOME}/bin/R -f ${in} ${opts} ${R_BATCH_OPTIONS} > ${out} 2>&1
